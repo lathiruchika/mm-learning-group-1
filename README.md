@@ -30,12 +30,20 @@ The frontend Todo App provides users with a user-friendly interface to manage th
 
 ## Folder Structure
 
-- **src/**: Contains the source code for the frontend application.
-  - **components/**: Contains React components for different parts of the application.
-  - **api/**: Contains Axios API client for making requests to the backend.
-  - **security/**: Contains authentication-related components and context provider.
-- **public/**: Contains static assets and index.html file.
+- **src/auth/**: `AuthContext.jsx` (session state), `AuthService.js` (sessionStorage + Basic Auth helpers), `ProtectedRoute.jsx` (route guard).
+- **src/api/**: `apiClient.js` (axios instance with auth + 401 interceptors), `authApi.js` (Basic Auth verification), `todoApi.js` (todo CRUD), `errorMapper.js` (backend error → user-friendly message mapping).
+- **src/pages/**: `LoginPage.jsx`, `WelcomePage.jsx`, `TodoListPage.jsx`, `TodoFormPage.jsx`.
+- **src/components/**: Shared UI (`Header`, `Footer`, `LoadingSpinner`, `InlineAlert`, `Error404`) and the `TodoApp` route shell.
+- **src/mocks/**: MSW handlers providing an in-memory mock backend for local dev while the real backend is unavailable.
+- **public/**: Static assets, `index.html`, and the generated `mockServiceWorker.js`.
 
+## Configuration
 
+Copy `.env.example` to `.env` and adjust:
+
+- `VITE_API_BASE_URL` — backend base URL (default `http://localhost:8080`).
+- `VITE_USE_MOCKS` — set to `false` once a real backend is running; defaults to `true` in dev so the app works against an in-memory mock (see `src/mocks/handlers.js`, seeded user `darshan` / `dummy`).
 
 ## Backend Integration
+
+Auth uses HTTP Basic Auth: credentials are verified against `GET /basicauth`, then base64-encoded and sent as the `Authorization` header on every subsequent request via `apiClient`. A `401` response anywhere clears the session and redirects to `/login` with a "Session expired" message.
