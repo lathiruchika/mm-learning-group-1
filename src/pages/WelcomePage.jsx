@@ -1,9 +1,7 @@
 import { Link, useParams } from "react-router-dom";
 
-const Welcome = () => {
-
+const WelcomePage = () => {
   const { username } = useParams();
-
 
   return (
     <div className="container py-5 my-4">
@@ -12,12 +10,14 @@ const Welcome = () => {
           <div className="text-center">
             <h1 className="py-2">Welcome, let&#39;s get started</h1>
             <h2 className="py-2">Hi, {username}</h2>
-            <h3 className="py-2">Check your todo <Link to="/list-todos">here</Link></h3>
+            <h3 className="py-2">
+              Check your todo <Link to="/todos">here</Link>
+            </h3>
           </div>
         </div>
       </div>
     </div>
   );
-}
+};
 
-export default Welcome;
+export default WelcomePage;

@@ -1,29 +1,15 @@
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Error404 from "./Error404";
-import Login from "./Login";
-import Welcome from "./Welcome";
-import ListTodos from "./ListTodos";
 import Header from "./Header";
 import Footer from "./Footer";
-import LogOut from "./LogOut";
-import UpdateTodoPage from "./UpdateTodoPage";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import AuthProvider, { useAuth } from "./security/AuthProvider";
-
+import AuthProvider from "../auth/AuthContext";
+import ProtectedRoute from "../auth/ProtectedRoute";
+import LoginPage from "../pages/LoginPage";
+import WelcomePage from "../pages/WelcomePage";
+import TodoListPage from "../pages/TodoListPage";
+import TodoFormPage from "../pages/TodoFormPage";
 
 const TodoApp = () => {
-
-
-  const AuthenticatedRoute = ({ children }) => {
-
-    const authContext = useAuth();
-
-    if (authContext.isAuthenticated)
-      return children;
-    else
-      return <Navigate to="/" />;
-
-  }
-
   return (
     <div className="d-flex flex-column vh-100">
       <AuthProvider>
@@ -31,41 +17,42 @@ const TodoApp = () => {
           <Header />
           <div className="flex-grow-1">
             <Routes>
-              <Route path='/' element={<Login />}></Route>
-              <Route path='/login' element={<Login />}></Route>
+              <Route path="/" element={<Navigate to="/login" replace />} />
+              <Route path="/login" element={<LoginPage />} />
 
-              <Route path='/welcome/:username' element={
-                <AuthenticatedRoute>
-                  <Welcome />
-                </AuthenticatedRoute>
-              }></Route>
+              <Route
+                path="/welcome/:username"
+                element={
+                  <ProtectedRoute>
+                    <WelcomePage />
+                  </ProtectedRoute>
+                }
+              />
 
-              <Route path='/list-todos' element={
-                <AuthenticatedRoute>
-                  <ListTodos />
-                </AuthenticatedRoute>
-              }></Route>
+              <Route
+                path="/todos"
+                element={
+                  <ProtectedRoute>
+                    <TodoListPage />
+                  </ProtectedRoute>
+                }
+              />
 
-              <Route path='/list-todos/:id' element={
-                <AuthenticatedRoute>
-                  <UpdateTodoPage />
-                </AuthenticatedRoute>
-              }></Route>
+              <Route
+                path="/todos/:id"
+                element={
+                  <ProtectedRoute>
+                    <TodoFormPage />
+                  </ProtectedRoute>
+                }
+              />
 
-             
-
-              <Route path='/logout' element={
-                <AuthenticatedRoute>
-                  <LogOut />
-                </AuthenticatedRoute>
-              }></Route>
-
-              <Route path='*' element={<Error404 />}></Route>
+              <Route path="*" element={<Error404 />} />
             </Routes>
           </div>
           <Footer />
         </BrowserRouter>
-      </ AuthProvider>
+      </AuthProvider>
     </div>
   );
 };
