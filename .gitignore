@@ -12,6 +12,13 @@ dist
 dist-ssr
 *.local
 
+# Local environment overrides (copy .env.example instead)
+.env
+
+# Playwright
+test-results/
+playwright-report/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
