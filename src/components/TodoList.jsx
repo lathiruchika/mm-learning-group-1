@@ -3,11 +3,15 @@ import TodoItem from './TodoItem.jsx'
 // Renders the list of todos, or an empty-state message.
 function TodoList({ todos, onToggle, onDelete }) {
   if (todos.length === 0) {
-    return <p className="empty">No todos yet. Add one above.</p>
+    return (
+      <p className="empty" data-testid="todo-empty">
+        No todos yet. Add one above.
+      </p>
+    )
   }
 
   return (
-    <ul className="todo-list">
+    <ul className="todo-list" data-testid="todo-list">
       {todos.map((todo) => (
         <TodoItem
           key={todo.id}
