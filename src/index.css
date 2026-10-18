@@ -38,13 +38,23 @@ body {
 }
 
 .add-form {
-  display: flex;
-  gap: 0.5rem;
   margin-bottom: 1rem;
 }
 
-.add-form input {
+.add-form-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.add-form input[type='text'] {
   flex: 1;
+  padding: 0.6rem 0.75rem;
+  font-size: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.add-form input[type='date'] {
   padding: 0.6rem 0.75rem;
   font-size: 1rem;
   border: 1px solid var(--border);
@@ -70,10 +80,69 @@ body {
   opacity: 0.9;
 }
 
-.empty {
+.empty,
+.loading {
   color: var(--muted);
   text-align: center;
   padding: 1rem 0;
+}
+
+.form-error {
+  color: var(--danger);
+  font-size: 0.875rem;
+  margin: 0.5rem 0 0;
+}
+
+.error-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  color: var(--danger);
+  background: #fef2f2;
+  border: 1px solid var(--danger);
+  border-radius: 8px;
+  padding: 0.6rem 0.75rem;
+}
+
+.error-banner button {
+  color: #fff;
+  background: var(--danger);
+  border: none;
+  border-radius: 6px;
+  padding: 0.35rem 0.75rem;
+  cursor: pointer;
+}
+
+.todo-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.edit-btn {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 0 0.25rem;
+}
+
+.edit-btn:hover {
+  opacity: 0.7;
+}
+
+.edit-input {
+  flex: 1;
+  padding: 0.3rem 0.5rem;
+  font-size: 1rem;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+}
+
+.todo-date {
+  color: var(--muted);
 }
 
 .todo-list {
