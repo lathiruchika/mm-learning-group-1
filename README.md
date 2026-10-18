@@ -1,41 +1,55 @@
-# Frontend Todo App
+# Todo App (minimal baseline)
 
-This project implements a frontend application for a Todo List using React, integrated with a backend Spring Boot RESTful API.
+A deliberately **feature-limited** React + Vite to-do app. It implements only the
+core so that new features and enhancements can be layered on top via your own
+workflow.
 
-## Overview
+## Features (intentionally limited)
 
-The frontend Todo App provides users with a user-friendly interface to manage their tasks efficiently. Integrated with a backend Spring Boot RESTful API, this application allows users to perform CRUD (Create, Read, Update, Delete) operations on their todos with real-time updates reflecting on the backend database.
+- Add a todo
+- List todos
+- Toggle a todo complete / incomplete
+- Delete a todo
+- Persistence via `localStorage`
 
-## Technologies Used
+No auth, no routing, no backend, no extra UI libraries.
 
-- **React**: Frontend library for building user interfaces.
-- **Axios**: Promise-based HTTP client for making requests to the backend API.
-- **Integration**: Seamless integration with a backend Spring Boot RESTful API for real-time updates on database changes.
+## Getting started
 
-## Features
+```bash
+npm install
+npm run dev      # start dev server
+npm run build    # production build
+npm run preview  # preview the build
+```
 
-- **CRUD Operations**: Users can Create, Read, Update, and Delete todos.
-- **Real-time Updates**: Changes made in the frontend reflect immediately on the backend database.
-- **User Authentication**: Basic authentication implemented for a single user to validate in the frontend.
-- **Context API**: Used for managing authentication state across multiple components.
-- **Routing**: Implemented with React Router for navigation between different components.
+## Structure
 
-## Getting Started
+```
+src/
+  main.jsx                  # app entry
+  index.css                 # all styles
+  App.jsx                   # state, localStorage, add/toggle/delete handlers
+  components/
+    AddTodoForm.jsx         # new-todo input + submit
+    TodoList.jsx            # list + empty state
+    TodoItem.jsx            # single row (checkbox, text, delete)
+```
 
-1. **Clone the Repository**: `git clone https://github.com/your_username/todo-frontend.git`
-2. **Navigate to the Project Directory**: `cd todo-frontend`
-3. **Install Dependencies**: `npm install`
-4. **Start the Application**: `npm run dev`
+A todo looks like:
 
+```js
+{ id: string, text: string, completed: boolean }
+```
 
-## Folder Structure
+## Where to extend
 
-- **src/**: Contains the source code for the frontend application.
-  - **components/**: Contains React components for different parts of the application.
-  - **api/**: Contains Axios API client for making requests to the backend.
-  - **security/**: Contains authentication-related components and context provider.
-- **public/**: Contains static assets and index.html file.
+Each piece is isolated so a workflow can add features with minimal blast radius:
 
-
-
-## Backend Integration
+- **Filters (All / Active / Completed)** — derive a filtered list in `App.jsx`,
+  add a filter bar component.
+- **Inline edit** — add an edit mode to `TodoItem.jsx` and an `editTodo` handler
+  in `App.jsx`.
+- **Due dates / priority** — extend the todo shape and `AddTodoForm.jsx`.
+- **Backend sync** — replace the `localStorage` calls in `App.jsx` with API calls.
+```
