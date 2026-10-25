@@ -109,3 +109,21 @@ in `TodoItem.jsx`.
 - Node assertions on the validators (empty/whitespace, 7 vs 8 chars after trim, today
   allowed, yesterday rejected, Feb 31, month 13, wrong formats) — all pass.
 - Not yet verified in a browser; Playwright coverage is planned in Part 2.
+
+### 2026-10-25 — EPMCDMETST-58998: tests added to this PR
+- `tests/unit/listUtils.test.js` — 12 unit tests for `applySearchFilterSort` / `isViewActive`
+  (Node built-in runner, no new dependency): `npm test`.
+- `tests/todos.search-filter-sort.spec.js` — 15 Playwright e2e tests (Chromium, dummy mode,
+  port 5199): `npm run test:e2e`. Adds `@playwright/test`, `playwright.config.js`, `tests/helpers.js`.
+- Verified locally: unit 12/12, e2e 15/15, `npm run build` passes.
+- Note: e2e `check()` on a row that leaves the filtered view hangs; the toggle test uses `click()`.
+
+### 2026-10-25 — EPMCDMETST-66717: tests added to this PR
+- `tests/unit/validation.test.js` — 13 unit tests for the validators with a fixed "today"
+  (so they never depend on the run date): required/min-length after trim, optional date,
+  today/future/past, Feb 31, month 13, non-leap-year Feb 29, malformed strings.
+- `tests/todos.validation-hardening.spec.js` — 16 Playwright e2e tests: add-form validation,
+  trimming, double-click creates one todo, inline edit (Enter/Escape/unchanged/provider failure).
+- This branch also merges the #6 branch to pick up its tests and the Playwright setup.
+- Verified locally: unit 25/25, e2e 31/31, `npm run build` passes.
+- Not covered: valid save-on-blur, the loading/error/retry states (needs real mode with no backend).
