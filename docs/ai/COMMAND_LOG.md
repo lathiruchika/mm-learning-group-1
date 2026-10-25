@@ -79,3 +79,11 @@ to it. Behaviour follows the acceptance criteria unchanged.
 - Node assertion script exercising `applySearchFilterSort` (search, both
   status filters, both sort directions, combined, no-match, no mutation) — 9/9 pass.
 - Not yet verified in a browser; Playwright coverage is planned in Part 2.
+
+### 2026-10-25 — EPMCDMETST-58998: tests added to this PR
+- `tests/unit/listUtils.test.js` — 12 unit tests for `applySearchFilterSort` / `isViewActive`
+  (Node built-in runner, no new dependency): `npm test`.
+- `tests/todos.search-filter-sort.spec.js` — 15 Playwright e2e tests (Chromium, dummy mode,
+  port 5199): `npm run test:e2e`. Adds `@playwright/test`, `playwright.config.js`, `tests/helpers.js`.
+- Verified locally: unit 12/12, e2e 15/15, `npm run build` passes.
+- Note: e2e `check()` on a row that leaves the filtered view hangs; the toggle test uses `click()`.
