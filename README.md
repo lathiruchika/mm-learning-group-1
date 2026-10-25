@@ -1,65 +1,88 @@
-# Todo App (minimal baseline)
+# Todo App (React 18 + Vite)
 
-A deliberately **feature-limited** React + Vite to-do app. It implements only the
-core so that new features and enhancements can be layered on top via your own
-workflow.
+A single-page to-do app written in plain JavaScript (`.jsx`). There is no router,
+no login and no UI library. It runs entirely in the browser in **dummy mode**
+(todos live in `localStorage`), or against a backend in **real mode**.
 
-## Features (intentionally limited)
+Repo: https://github.com/lathiruchika/mm-learning-group-1
 
-- Add a todo
-- List todos
-- Toggle a todo complete / incomplete
-- Delete a todo
-- Persistence via `localStorage`
+## Features
 
-No auth, no routing, no extra UI libraries. Todo access goes through a small
-API adapter so the app can run against a **dummy provider** (in-browser, no
-backend) or a **real provider** (axios → backend).
+- Add, edit, complete and delete todos; persisted via `localStorage` in dummy mode
+- **Search, filter and sort** (EPMCDMETST-58998)
+  - Search is case-insensitive, trimmed, substring match on the description
+  - Status filter: All / Done / Not done
+  - Sort by target date: default / earliest first / latest first (undated todos always last)
+  - Clear resets all three
+  - "No todos yet. Add one above." for an empty list (controls hidden);
+    "No todos match your filters." when filters match nothing
+- **Validation** (EPMCDMETST-66717)
+  - Description: required, at least 8 characters after trimming
+  - Target date: optional; if set it must be a real calendar date and not in the past
+  - Add is disabled while the form is invalid or saving; double-submit is guarded
+  - Inline edit saves on Enter or blur and cancels on Escape; an unchanged edit just
+    closes; a failed save shows an inline `role="alert"` message
+- Loading state and an error banner with Retry (EPMCDMETST-69689)
+
+## Requirements
+
+- Node.js 18 or newer (developed and verified on Node 24) and npm
 
 ## Getting started
 
 ```bash
-npm install
-cp .env.example .env   # defaults to dummy mode (no backend needed)
-npm run dev            # start dev server
-npm run build          # production build
-npm run preview        # preview the build
+npm ci
+cp .env.example .env   # PowerShell: Copy-Item .env.example .env
+npm run dev
 ```
 
-## API mode (dummy vs real)
+`.env.example` sets `VITE_API_MODE=dummy`, so no backend is needed.
 
-The app selects a Todo provider at runtime from `VITE_API_MODE`:
+## Configuration: dummy vs real
 
-| Var | Default | Purpose |
+| Variable | Default | Purpose |
 | --- | --- | --- |
-| `VITE_API_MODE` | `real` | `dummy` = in-browser localStorage provider (no network); `real` = axios-backed provider. |
-| `VITE_API_BASE_URL` | `http://localhost:8080` | Backend base URL. Used **only** in real mode; ignored in dummy mode. |
+| `VITE_API_MODE` | `real` | `dummy` = in-browser localStorage provider (no network); `real` = axios provider. |
+| `VITE_API_BASE_URL` | `http://localhost:8080` | Backend base URL. Used only in real mode. |
 
-Env vars are read via `import.meta.env.VITE_*`. Copy `.env.example` to `.env`
-and edit as needed (`.env` is gitignored — never commit secrets).
+> **The mode is fixed when the app is built or started, not at runtime.** Vite inlines
+> `VITE_*` values into the bundle, so changing `VITE_API_MODE` means restarting
+> `npm run dev` or running `npm run build` again. If the variable is unset the app
+> defaults to **real** mode and will show an error banner without a backend.
+> `VITE_*` values are public in the built bundle: never put secrets in them.
+> `.env` is gitignored; `.env.example` is tracked.
 
-### Run without a backend (dummy mode)
+In dummy mode todos are seeded for user `darshan` and stored under the
+`localStorage` key `mm.todos.v1`. In real mode the app calls
+`GET/POST/PUT/DELETE /users/{username}/todos[/{id}]` on `VITE_API_BASE_URL`.
 
-```bash
-# .env
-VITE_API_MODE=dummy
-```
-
-Then `npm run dev`. Todos are seeded for user `darshan` and persisted in
-`localStorage` under key `mm.todos.v1`. Create / edit / toggle / delete all
-work with no backend running.
-
-### Run against a real backend
+## Build and run a production build locally
 
 ```bash
-# .env
-VITE_API_MODE=real
-VITE_API_BASE_URL=http://localhost:8080
+VITE_API_MODE=dummy npm run build     # PowerShell: $env:VITE_API_MODE='dummy'; npm run build
+npm run preview -- --host 127.0.0.1 --port 4173
 ```
 
-The real provider calls `GET/POST/PUT/DELETE /users/{username}/todos[/{id}]`.
+The build output is in `dist/`. Open http://127.0.0.1:4173.
 
-## Structure
+## Tests
+
+```bash
+npm test                        # unit tests (Node's built-in runner, no extra install)
+
+npx playwright install chromium # one-time browser download
+npm run test:e2e                # Playwright end-to-end tests
+```
+
+- Unit tests: `tests/unit/` (list search/filter/sort logic, validation rules; "today" is
+  fixed so date tests never depend on the run date).
+- E2E tests: `tests/*.spec.js`, Chromium only. The config starts the app itself in dummy
+  mode on port 5199, so it will not collide with `npm run dev`.
+- The HTML report is written to `playwright-report/index.html` (gitignored).
+- Tests find elements by `data-testid` (for example `todo-search-input`,
+  `todo-status-filter`, `todo-sort-select`, `todo-add-btn`, `todo-edit-error-<id>`).
+
+## Project structure
 
 ```
 src/
@@ -70,13 +93,20 @@ src/
     apiAdapter.js                # todoApi surface; picks provider from VITE_API_MODE
     providers/
       dummyTodoProvider.js       # localStorage CRUD, no network
-      realTodoProvider.js        # axios → backend
+      realTodoProvider.js        # axios -> backend
     storage/
       localStorageRepo.js        # mm.todos.v1 schema + seed
   components/
-    AddTodoForm.jsx              # new-todo inputs + submit
-    TodoList.jsx                 # list + empty state
-    TodoItem.jsx                 # single row (checkbox, description, edit, delete)
+    AddTodoForm.jsx              # new-todo inputs, validation, saving state
+    TodoList.jsx                 # search/filter/sort controls + list + empty states
+    TodoItem.jsx                 # one row: checkbox, description, inline edit, delete
+    listUtils.js                 # pure search/filter/sort logic
+    validation.js                # pure validation rules
+tests/
+  unit/                          # node:test unit tests
+  *.spec.js                      # Playwright e2e specs
+  helpers.js                     # seeding and locator helpers
+playwright.config.js
 ```
 
 A todo looks like:
@@ -85,12 +115,18 @@ A todo looks like:
 { id: number, username: string, description: string, targetDate: string, done: boolean }
 ```
 
-## Where to extend
+`targetDate` is `yyyy-MM-dd` or an empty string.
 
-Each piece is isolated so a workflow can add features with minimal blast radius:
+## Known limitations
 
-- **Filters (All / Active / Completed)** — derive a filtered list in `App.jsx`,
-  add a filter bar component.
-- **Priority** — extend the todo shape and `AddTodoForm.jsx`.
-- **Backend sync** — flip `VITE_API_MODE=real` and implement the matching
-  endpoints; the UI already talks only to the adapter.
+- No maximum description length is enforced.
+- Not covered by automated tests: saving an inline edit by blur, and the loading and
+  error/Retry states (the error state only appears in real mode with no backend).
+- End-to-end tests run in Chromium only.
+- No Docker setup is provided.
+- Real mode needs a compatible backend, which this repository does not include.
+
+## Working with AI assistance
+
+`docs/ai/COMMAND_LOG.md` records the AI-assisted changes and verification for each story.
+Confluence-ready page drafts are in `docs/confluence-pages.md`.

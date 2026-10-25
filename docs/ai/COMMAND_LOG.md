@@ -127,3 +127,13 @@ in `TodoItem.jsx`.
 - This branch also merges the #6 branch to pick up its tests and the Playwright setup.
 - Verified locally: unit 25/25, e2e 31/31, `npm run build` passes.
 - Not covered: valid save-on-blur, the loading/error/retry states (needs real mode with no backend).
+
+### 2026-10-25 — Documentation phase (Part 2)
+- Called the CodeMie Documentation agent with a fact brief (the code datasource and the old
+  Confluence design page are stale). It made no tool calls and reported no errors.
+- Reviewed its draft against the code and kept the accurate parts. Corrected: removed project-management
+  notes from the README, added the `npx playwright install chromium` step, filled in the Node
+  requirement, and fixed the old README's claim that the API mode is chosen at runtime (it is build time).
+- `README.md` rewritten. `docs/confluence-pages.md` holds the build guide, local deployment guide,
+  test cases and results, demo script, traceability matrix, design-page corrections and Jira
+  comment text. Not published: no Confluence or Jira tool is available to the agent.
