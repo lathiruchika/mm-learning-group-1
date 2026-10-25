@@ -109,3 +109,32 @@ in `TodoItem.jsx`.
 - Node assertions on the validators (empty/whitespace, 7 vs 8 chars after trim, today
   allowed, yesterday rejected, Feb 31, month 13, wrong formats) — all pass.
 - Not yet verified in a browser; Playwright coverage is planned in Part 2.
+
+## 2026-10-25 — EPMCDMETST-66717 / EPMCDMETST-58998: Playwright e2e suite
+
+Branch: `feature/EPMCDMETST-66717-playwright-tests` (stacked on the validation branch)
+
+### Context
+Part 2 "QA Test Work Order" handoff. The work order's selectors and some scenario wording
+(Completed/Pending, Save/Cancel buttons, invalid date format, max task length) did not match
+the app, so the specs target the real `data-testid`s and behavior. The CodeMie QA agent
+cannot run tests; they were written and run locally in claude-code CLI.
+
+### Key Claude actions
+- Added `@playwright/test`, `playwright.config.js` (dummy API mode, port 5199, Chromium) and
+  `npm run test:e2e`.
+- Added `tests/todos.search-filter-sort.spec.js` (15 tests) and
+  `tests/todos.validation-hardening.spec.js` (16 tests); seeding via the dummy provider's
+  localStorage document (`mm.todos.v1`).
+- First run: 30/31 passed. The one failure was a test bug, not an app bug: `locator.check()`
+  waits for the box to end up checked, but the row leaves the "Not done" view once done.
+  Switched to `click()`.
+
+### Verification (run locally)
+- `npm run test:e2e` — **31 passed, 0 failed**. HTML report: `playwright-report/index.html`
+  (git-ignored; regenerate with `npm run test:e2e`).
+
+### Known gaps
+- Task maximum length: requested by the QA work order, not implemented in the app, so untested.
+- Add-form provider-failure banner: not reachable through the UI, so untested.
+- Chromium only.

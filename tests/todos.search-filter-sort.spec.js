@@ -139,7 +139,9 @@ test.describe('@EPMCDMETST-58998 search, filter and sort', () => {
     await page.getByTestId('todo-status-filter').selectOption('not-done')
     await expect(rows(page)).toHaveCount(3)
 
-    await page.getByTestId('todo-done-checkbox-3').check() // "Call mom"
+    // "Call mom". Use click(), not check(): check() waits for the box to end up
+    // checked, but this row leaves the "Not done" view as soon as it is done.
+    await page.getByTestId('todo-done-checkbox-3').click()
 
     await expect
       .poll(() => visibleDescriptions(page))
