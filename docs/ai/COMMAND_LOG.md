@@ -53,3 +53,29 @@ story instructions.
   To verify manually: `cp .env.example .env` (set `VITE_API_MODE=dummy`),
   `npm run dev`, open the app with the backend OFF, and exercise
   list/add/edit/toggle/delete.
+
+## 2026-10-25 — EPMCDMETST-58998: Search / filter / sort on the todo list
+
+Branch: `feature/EPMCDMETST-58998-search-filter-sort` (stacked on `feature/EPMCDMETST-69689-api-provider-toggle`)
+
+### Context
+Dev Work Order DWO 3 from the CodeMie "Part 1 — Plan & Design" workflow. The DWO
+referenced `ListTodosComponent.jsx`, which does not exist in this repo; the
+equivalent surface is `src/components/TodoList.jsx`, so the story was adapted
+to it. Behaviour follows the acceptance criteria unchanged.
+
+### Key Claude actions
+- Added `src/components/listUtils.js` — pure `applySearchFilterSort` (case-insensitive
+  description search, All/Done/Not done filter, target-date asc/desc sort;
+  undated todos always last; input never mutated).
+- Reworked `TodoList.jsx` to hold view state locally, render the controls and a
+  "No todos match your filters." empty state (distinct from "No todos yet").
+- Added control styles to `src/index.css`.
+- data-testids: `todo-list-controls`, `todo-search-input`, `todo-status-filter`,
+  `todo-sort-select`, `todo-clear-filters-btn`; reused `todos-empty` and `todos-table`.
+
+### Verification
+- `npm ci && npm run build` — passes.
+- Node assertion script exercising `applySearchFilterSort` (search, both
+  status filters, both sort directions, combined, no-match, no mutation) — 9/9 pass.
+- Not yet verified in a browser; Playwright coverage is planned in Part 2.

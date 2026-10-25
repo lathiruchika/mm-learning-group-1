@@ -114,6 +114,45 @@ body {
   cursor: pointer;
 }
 
+.list-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.list-controls input[type='search'] {
+  flex: 1 1 8rem;
+  padding: 0.45rem 0.6rem;
+  font-size: 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.list-controls select {
+  padding: 0.45rem 0.5rem;
+  font-size: 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+}
+
+.list-controls input:focus,
+.list-controls select:focus {
+  outline: 2px solid var(--accent);
+  border-color: var(--accent);
+}
+
+.clear-btn {
+  padding: 0.45rem 0.75rem;
+  font-size: 0.9rem;
+  color: var(--accent);
+  background: none;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
 .todo-actions {
   display: flex;
   align-items: center;
