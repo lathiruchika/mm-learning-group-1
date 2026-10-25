@@ -79,3 +79,33 @@ to it. Behaviour follows the acceptance criteria unchanged.
 - Node assertion script exercising `applySearchFilterSort` (search, both
   status filters, both sort directions, combined, no-match, no mutation) — 9/9 pass.
 - Not yet verified in a browser; Playwright coverage is planned in Part 2.
+
+## 2026-10-25 — EPMCDMETST-66717: Form validation hardening
+
+Branch: `feature/EPMCDMETST-66717-form-validation-hardening` (stacked on `feature/EPMCDMETST-58998-search-filter-sort`)
+
+### Context
+Dev Work Order DWO 4. The DWO targeted `TodoComponent.jsx` (Formik); this repo has
+no Formik or router, so the change is in `AddTodoForm.jsx` and the inline editor
+in `TodoItem.jsx`.
+
+### Key Claude actions
+- Added `src/components/validation.js` — pure validators. Description: required,
+  trimmed length >= 8. Target date: optional; if present must be a real calendar
+  date (rejects 2026-02-31) and today or later (local day, not UTC).
+- `AddTodoForm.jsx`: inline errors shown once a field is touched, Add disabled while
+  invalid or saving, "Saving…" label, double-submit guard, trims description before save.
+- `TodoItem.jsx`: inline edit uses the same description rule; unchanged text just closes
+  (older todos may be < 8 chars); save failures show an inline message instead of an
+  unhandled rejection; Escape cancels.
+- data-testids: `todo-description-error`, `todo-targetDate-error`, `todo-edit-error-<id>`.
+
+### Decisions to confirm
+- Target date left optional (matches the dummy provider and existing seed data). The FRD
+  could be read as "required"; flip in `validateTargetDate` if so.
+
+### Verification
+- `npm run build` — passes.
+- Node assertions on the validators (empty/whitespace, 7 vs 8 chars after trim, today
+  allowed, yesterday rejected, Feb 31, month 13, wrong formats) — all pass.
+- Not yet verified in a browser; Playwright coverage is planned in Part 2.
