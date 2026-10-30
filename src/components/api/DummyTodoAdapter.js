@@ -10,6 +10,8 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const SIMULATE_KEY = "dummy-api:simulate-error";
 
 const storageKey = (username) => `todo:${username}`;
+const seqKey = (username) => `todo-seq:${username}`;
+const backupKey = (username) => `todo-backup:${username}`;
 
 // ---------- configuration -------------------------------------------------
 
@@ -134,8 +136,10 @@ function persist(username, todos) {
     setItem(storageKey(username), JSON.stringify(todos));
 }
 
-// Missing or corrupt data is replaced with seeded defaults. An explicitly
-// empty array ("[]") is respected so the empty state remains reachable.
+// Missing data is seeded with defaults. An explicitly empty array ("[]") is
+// respected so the empty state remains reachable. Unreadable data is backed up
+// before being replaced; if that is not possible the defaults are returned for
+// this call only, so a read never destroys what the user has stored.
 function load(username) {
     const raw = getItem(storageKey(username));
     if (raw !== null) {
@@ -145,12 +149,36 @@ function load(username) {
                 return normalizeList(parsed);
             }
         } catch {
-            /* corrupt JSON: fall through to seed */
+            /* corrupt JSON: handled below */
         }
+        const seeded = seedTodos();
+        try {
+            setItem(backupKey(username), raw);
+            persist(username, seeded);
+        } catch {
+            /* could not back up or write: original data stays untouched */
+        }
+        return seeded;
     }
     const seeded = seedTodos();
-    persist(username, seeded);
+    try {
+        persist(username, seeded);
+    } catch {
+        /* a read must not fail just because seeding could not be saved */
+    }
     return seeded;
+}
+
+// Ids only ever increase, so an id freed by a delete is never handed out again.
+function highestId(username, todos) {
+    const stored = Number(getItem(seqKey(username)));
+    return Math.max(Number.isInteger(stored) ? stored : 0, ...todos.map((t) => t.id), 0);
+}
+
+function nextId(username, todos) {
+    const id = highestId(username, todos) + 1;
+    setItem(seqKey(username), String(id));
+    return id;
 }
 
 function notFound(id) {
@@ -191,7 +219,7 @@ export async function createTodo(username, todo) {
     validateInput(todo);
     const todos = load(username);
     const created = {
-        id: todos.length ? Math.max(...todos.map((t) => t.id)) + 1 : 1,
+        id: nextId(username, todos),
         description: todo.description.trim(),
         done: normalizeDone(todo.done),
         targetDate: todo.targetDate,
@@ -226,6 +254,7 @@ export async function deleteTodo(username, id) {
     if (!todos.some((t) => t.id === Number(id))) {
         throw notFound(id);
     }
+    setItem(seqKey(username), String(highestId(username, todos)));
     persist(username, todos.filter((t) => t.id !== Number(id)));
     return { data: null, status: 204 };
 }
