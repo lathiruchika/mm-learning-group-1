@@ -56,10 +56,11 @@ function ListTodosComponent({ onEdit, refreshTrigger }) {
     setDeleteState((prev) => ({ ...prev, [sid]: 'deleting' }))
     try {
       await todoApi.deleteTodo(APP_USERNAME, sid)
-      setTodos((prev) => prev.filter((t) => String(t.id) !== sid))
-      // Show a transient success badge, then clear it (EPMCDMETST-70450 AC).
+      // Show success message first (row stays visible), then remove after TTL.
+      // This ensures the "✓ Deleted" badge is rendered before the row disappears.
       setDeleteState((prev) => ({ ...prev, [sid]: 'success' }))
       setTimeout(() => {
+        setTodos((prev) => prev.filter((t) => String(t.id) !== sid))
         setDeleteState((prev) => {
           const next = { ...prev }
           delete next[sid]

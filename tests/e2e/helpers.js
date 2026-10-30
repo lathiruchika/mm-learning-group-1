@@ -2,7 +2,12 @@
 
 export const SCHEMA_VERSION = 1
 
-/** Seed todos into localStorage before navigating. */
+/**
+ * Seed todos into localStorage before navigating.
+ * Uses addInitScript — runs on EVERY page load (incl. reload).
+ * Use only when the test does NOT call page.reload() afterwards,
+ * or when you want the seed to be re-applied on reload.
+ */
 export async function seedTodos(page, todos) {
   const meta = {
     nextId: 200,
@@ -15,26 +20,17 @@ export async function seedTodos(page, todos) {
   }, { todosJson: JSON.stringify(todos), metaJson: JSON.stringify(meta) })
 }
 
-/** Clear localStorage so the app re-seeds on next load. */
-export async function clearStorage(page) {
-  await page.addInitScript(() => {
-    localStorage.clear()
-  })
-}
-
-/** Stub VITE_ env vars at runtime via window.__VITE_ENV_OVERRIDE__ pattern.
- *  Because Vite bakes env at dev-start, we override by monkey-patching
- *  import.meta.env properties via addInitScript before the module loads.
+/**
+ * Navigate to the app, clear localStorage via evaluate (NOT addInitScript),
+ * then reload so the app picks up a fresh state and re-seeds defaults.
+ *
+ * Safe for persist-after-reload tests: subsequent page.reload() calls will NOT
+ * re-clear storage because we used evaluate, not addInitScript.
  */
-export async function overrideEnv(page, vars) {
-  await page.addInitScript((envVars) => {
-    // Patch import.meta.env values before app modules evaluate.
-    Object.defineProperty(window, '__pw_env_patch__', { value: envVars })
-    // Store for use by the app module shim.
-    for (const [k, v] of Object.entries(envVars)) {
-      sessionStorage.setItem(`__pw_env_${k}`, v)
-    }
-  }, vars)
+export async function resetStorage(page) {
+  await page.goto('/')
+  await page.evaluate(() => localStorage.clear())
+  await page.reload()
 }
 
 export const DEFAULT_TODOS = [

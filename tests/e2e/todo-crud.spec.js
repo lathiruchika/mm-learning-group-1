@@ -1,25 +1,25 @@
 // EPMCDMETST-70446 — Dummy API CRUD (localStorage persist, seed dataset, correct shape)
-// EPMCDMETST-70451 — Form load/save/error states (covered alongside CRUD)
+// EPMCDMETST-70451 — Form load/save/validation states
 
 import { test, expect } from '@playwright/test'
-import { seedTodos, clearStorage, DEFAULT_TODOS } from './helpers.js'
+import { seedTodos, resetStorage, DEFAULT_TODOS } from './helpers.js'
 
 test.describe('Todo CRUD — EPMCDMETST-70446', () => {
+  // resetStorage: navigate → clear via evaluate → reload
+  // Subsequent page.reload() calls in tests will NOT re-clear storage.
   test.beforeEach(async ({ page }) => {
-    await clearStorage(page)
-    await page.goto('/')
+    await resetStorage(page)
+    await expect(page.getByTestId('todos-table')).toBeVisible()
   })
 
   // ── Seeding ────────────────────────────────────────────────────────────────
   test('first run seeds 3 default todos', async ({ page }) => {
-    await expect(page.getByTestId('todos-table')).toBeVisible()
     await expect(page.getByTestId('todo-row-1')).toBeVisible()
     await expect(page.getByTestId('todo-row-2')).toBeVisible()
     await expect(page.getByTestId('todo-row-3')).toBeVisible()
   })
 
   test('seeded todos persist across page reload', async ({ page }) => {
-    await expect(page.getByTestId('todos-table')).toBeVisible()
     await page.reload()
     await expect(page.getByTestId('todos-table')).toBeVisible()
     await expect(page.getByTestId('todo-row-1')).toBeVisible()
@@ -27,31 +27,24 @@ test.describe('Todo CRUD — EPMCDMETST-70446', () => {
 
   // ── Create ─────────────────────────────────────────────────────────────────
   test('creates a new todo and appends it to the list', async ({ page }) => {
-    await expect(page.getByTestId('todos-table')).toBeVisible()
-
     await page.getByTestId('todoform-description').fill('Write Playwright tests now')
     await page.getByTestId('todoform-target-date').fill('2026-11-20')
     await page.getByTestId('todoform-submit').click()
-
     await expect(page.getByTestId('todos-table')).toContainText('Write Playwright tests now')
   })
 
   test('new todo persists after page reload', async ({ page }) => {
-    await expect(page.getByTestId('todos-table')).toBeVisible()
-
     await page.getByTestId('todoform-description').fill('Persistent new todo item')
     await page.getByTestId('todoform-target-date').fill('2026-12-01')
     await page.getByTestId('todoform-submit').click()
     await expect(page.getByTestId('todos-table')).toContainText('Persistent new todo item')
 
-    await page.reload()
+    await page.reload()   // safe — no addInitScript to re-clear storage
     await expect(page.getByTestId('todos-table')).toContainText('Persistent new todo item')
   })
 
   test('form resets to empty after successful create', async ({ page }) => {
-    await expect(page.getByTestId('todos-table')).toBeVisible()
-
-    await page.getByTestId('todoform-description').fill('Another brand new task')
+    await page.getByTestId('todoform-description').fill('Another brand new task here')
     await page.getByTestId('todoform-target-date').fill('2026-11-25')
     await page.getByTestId('todoform-submit').click()
 
@@ -61,7 +54,6 @@ test.describe('Todo CRUD — EPMCDMETST-70446', () => {
 
   // ── Edit ───────────────────────────────────────────────────────────────────
   test('clicking Edit pre-fills form with todo data', async ({ page }) => {
-    await expect(page.getByTestId('todo-edit-1')).toBeVisible()
     await page.getByTestId('todo-edit-1').click()
 
     await expect(page.getByTestId('todoform-description')).not.toHaveValue('')
@@ -71,15 +63,12 @@ test.describe('Todo CRUD — EPMCDMETST-70446', () => {
   })
 
   test('updates todo description and persists after reload', async ({ page }) => {
-    await expect(page.getByTestId('todo-edit-1')).toBeVisible()
     await page.getByTestId('todo-edit-1').click()
-
     await page.getByTestId('todoform-description').fill('Buy groceries for next two weeks')
     await page.getByTestId('todoform-submit').click()
-
     await expect(page.getByTestId('todos-table')).toContainText('Buy groceries for next two weeks')
 
-    await page.reload()
+    await page.reload()   // safe — storage won't be cleared
     await expect(page.getByTestId('todos-table')).toContainText('Buy groceries for next two weeks')
   })
 
@@ -96,23 +85,16 @@ test.describe('Todo CRUD — EPMCDMETST-70446', () => {
 
   // ── Delete ─────────────────────────────────────────────────────────────────
   test('deletes a todo and removes it from the list', async ({ page }) => {
-    await seedTodos(page, DEFAULT_TODOS)
-    await page.goto('/')
-
-    await expect(page.getByTestId('todo-row-2')).toBeVisible()
     await page.getByTestId('todo-delete-2').click()
-
-    await expect(page.getByTestId('todo-row-2')).not.toBeVisible()
+    // Row lingers briefly for success message, then disappears
+    await expect(page.getByTestId('todo-row-2')).not.toBeVisible({ timeout: 5000 })
   })
 
   test('deleted todo does not reappear after reload', async ({ page }) => {
-    await seedTodos(page, DEFAULT_TODOS)
-    await page.goto('/')
-
     await page.getByTestId('todo-delete-2').click()
-    await expect(page.getByTestId('todo-row-2')).not.toBeVisible()
+    await expect(page.getByTestId('todo-row-2')).not.toBeVisible({ timeout: 5000 })
 
-    await page.reload()
+    await page.reload()   // safe — storage won't be cleared
     await expect(page.getByTestId('todo-row-2')).not.toBeVisible()
   })
 

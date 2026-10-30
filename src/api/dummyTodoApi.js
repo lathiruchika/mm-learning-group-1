@@ -120,7 +120,13 @@ async function simulateDelay() {
 }
 
 // Probabilistic failure: VITE_DUMMY_FAIL_RATE=0.3 fails ~30% of calls.
+// E2E tests can also inject failures at runtime via window.__PW_DUMMY_FAIL=true
+// (set after page load so initial seed succeeds but subsequent ops fail).
 function maybeSimulateFailure() {
+  const testInject = typeof window !== 'undefined' && window.__PW_DUMMY_FAIL
+  if (testInject) {
+    throw new Error('Simulated API failure (test injection)')
+  }
   if (DUMMY_FAIL_RATE > 0 && Math.random() < DUMMY_FAIL_RATE) {
     throw new Error(`Simulated API failure (VITE_DUMMY_FAIL_RATE=${DUMMY_FAIL_RATE})`)
   }
