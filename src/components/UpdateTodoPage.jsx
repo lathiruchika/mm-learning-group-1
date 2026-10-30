@@ -2,7 +2,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "./security/AuthProvider";
 import { createTodoApi, retrieveOneTodoApi, updateTodoApi } from "./api/TodoApi";
 import { ERROR_CODES, getErrorMessage } from "./api/ApiError";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Field, Form, Formik } from "formik";
 import { validateTodo } from "./todoValidation";
 import ErrorBanner from "./common/ErrorBanner";
@@ -22,9 +22,17 @@ const UpdateTodoPage = () => {
   const [loadError, setLoadError] = useState(null);
   const [submitError, setSubmitError] = useState(null);
 
+  // Only the most recent load may update state, so a stale response (Retry,
+  // StrictMode double effect, navigating to another todo, unmount) is ignored.
+  const latestRequest = useRef(0);
+
   const retrieveOneTodoForUpdate = useCallback(() => {
+    const requestId = ++latestRequest.current;
+    const isCurrent = () => requestId === latestRequest.current;
     if (isCreate) {
       setInitialValues({ description: "", targetDate: "", done: false });
+      setNotFound(false);
+      setLoadError(null);
       setLoading(false);
       return;
     }
@@ -33,6 +41,7 @@ const UpdateTodoPage = () => {
     setLoadError(null);
     retrieveOneTodoApi(username, id)
       .then(response => {
+        if (!isCurrent()) return;
         setInitialValues({
           description: response.data.description,
           targetDate: response.data.targetDate,
@@ -40,17 +49,24 @@ const UpdateTodoPage = () => {
         })
       })
       .catch(error => {
+        if (!isCurrent()) return;
         if (error && error.code === ERROR_CODES.NOT_FOUND) {
           setNotFound(true)
         } else {
           setLoadError(getErrorMessage(error, "Unable to load the todo."))
         }
       })
-      .finally(() => setLoading(false))
+      .finally(() => {
+        if (isCurrent()) setLoading(false)
+      })
   }, [username, id, isCreate])
 
   useEffect(() => {
+    const counter = latestRequest
     retrieveOneTodoForUpdate()
+    return () => {
+      counter.current++
+    }
   }, [retrieveOneTodoForUpdate])
 
   async function onSubmit(values) {
