@@ -125,3 +125,46 @@ export const seedTodos = [
   { id: 2, description: 'Build the todo frontend', done: false, targetDate: '2030-01-20' },
   { id: 3, description: 'Write project documentation', done: true, targetDate: '2029-12-01' },
 ]
+
+/** Full page reload (drops the in-memory login), sign in again and open the list. */
+export async function reloadAndOpenList(page) {
+  await page.reload()
+  await expect(page.locator('input[name="username"]')).toBeVisible()
+  await signIn(page)
+  await openTodoList(page)
+  await expect(page.getByTestId('todo-list-loading')).toBeHidden()
+}
+
+/** Ids currently stored for a user, in storage order. */
+export async function storedIds(page, username = USERNAME) {
+  const stored = await readJson(page, `todo:${username}`)
+  return stored.map((t) => t.id)
+}
+
+/**
+ * Count dummy API calls. Every adapter call reads the simulate-error flag exactly once
+ * (after its delay), so reads of that key are a faithful call counter that does not
+ * touch application code. Register BEFORE the first navigation (addInitScript).
+ * Read the counter with `apiCallCount(page)`; reset it with `resetApiCallCount(page)`.
+ */
+export async function installApiCallCounter(page) {
+  await page.addInitScript((key) => {
+    window.__apiCalls = 0
+    const original = Storage.prototype.getItem
+    Storage.prototype.getItem = function (name) {
+      if (name === key) window.__apiCalls += 1
+      return original.call(this, name)
+    }
+  }, SIMULATE_KEY)
+}
+
+export const apiCallCount = (page) => page.evaluate(() => window.__apiCalls)
+export const resetApiCallCount = (page) =>
+  page.evaluate(() => {
+    window.__apiCalls = 0
+  })
+
+/** The id part of a row's data-testid (todo-row-12 -> 12). */
+export async function rowId(row) {
+  return (await row.getAttribute('data-testid')).replace('todo-row-', '')
+}
