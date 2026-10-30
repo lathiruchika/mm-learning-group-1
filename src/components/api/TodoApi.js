@@ -26,6 +26,14 @@ function toApiError(error) {
     if (error && error.response && error.response.status === 404) {
         return new TodoApiError(ERROR_CODES.NOT_FOUND, "The requested todo was not found.");
     }
+    if (error && error.response && error.response.status === 400) {
+        const body = error.response.data || {};
+        return new TodoApiError(
+            ERROR_CODES.VALIDATION_ERROR,
+            body.message || "Todo is invalid.",
+            body.fieldErrors
+        );
+    }
     return new TodoApiError(ERROR_CODES.UNKNOWN, (error && error.message) || "Request failed.");
 }
 

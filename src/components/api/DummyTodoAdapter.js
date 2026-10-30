@@ -146,7 +146,15 @@ function load(username) {
         try {
             const parsed = JSON.parse(raw);
             if (Array.isArray(parsed)) {
-                return normalizeList(parsed);
+                const normalized = normalizeList(parsed);
+                if (JSON.stringify(normalized) !== JSON.stringify(parsed)) {
+                    try {
+                        persist(username, normalized);
+                    } catch {
+                        /* best effort: normalization is re-applied on the next read */
+                    }
+                }
+                return normalized;
             }
         } catch {
             /* corrupt JSON: handled below */
