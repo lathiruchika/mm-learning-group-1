@@ -6,7 +6,11 @@ function ErrorBanner({ message, onRetry, testId = 'error-banner' }) {
       <span className="error-banner__icon">⚠</span>
       <span className="error-banner__msg">{message}</span>
       {onRetry && (
-        <button className="error-banner__retry" onClick={onRetry}>
+        <button
+          className="error-banner__retry"
+          onClick={onRetry}
+          data-testid={testId ? `${testId}-retry` : 'error-banner-retry'}
+        >
           Retry
         </button>
       )}

@@ -3,7 +3,7 @@
 //
 // VITE_API_MODE      = 'dummy' | 'real'   (default: 'dummy')
 // VITE_DUMMY_API_LATENCY_MS               (default: 0  — off)
-// VITE_DUMMY_API_FAIL = 'true'            (default: false — off)
+// VITE_DUMMY_FAIL_RATE = 0..1             (default: 0 — never fail; 1 = always)
 // VITE_APP_USERNAME                       (default: 'demo-user')
 // VITE_API_BASE_URL                       (default: 'http://localhost:8080')
 
