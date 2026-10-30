@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { retrieveTodosForAllUsers, deleteTodoApi, getStorageWarningMessage } from "./api/TodoApi";
 import { getErrorMessage } from "./api/ApiError";
 import { useAuth } from "./security/AuthProvider";
@@ -19,19 +19,34 @@ const ListTodos = () => {
     const navigate = useNavigate();
     const storageWarning = getStorageWarningMessage();
 
+    // Only the most recent request may update state, so a slow or stale response
+    // (Retry, delete-then-refresh, StrictMode double effect, unmount) is ignored.
+    const latestRequest = useRef(0);
+
     const refreshTodos = useCallback(() => {
+        const requestId = ++latestRequest.current;
+        const isCurrent = () => requestId === latestRequest.current;
         setLoading(true);
         return retrieveTodosForAllUsers(username)
             .then((response) => {
+                if (!isCurrent()) return;
                 setTodos(response.data)
                 setError(null)
             })
-            .catch((err) => setError(getErrorMessage(err, "Unable to load your todos.")))
-            .finally(() => setLoading(false))
+            .catch((err) => {
+                if (!isCurrent()) return;
+                setError(getErrorMessage(err, "Unable to load your todos."))
+            })
+            .finally(() => {
+                if (isCurrent()) setLoading(false)
+            })
     }, [username])
 
     useEffect(() => {
         refreshTodos()
+        return () => {
+            latestRequest.current++
+        }
     }, [refreshTodos])
 
     const deleteTodo = (id) => {
