@@ -8,9 +8,11 @@ export const MIN_DESCRIPTION_LENGTH = 8;
 export function validateTodo(values) {
   const errors = {};
   const description = (values.description || "").trim();
-  if (description.length === 0) {
+  // Count code points, not UTF-16 units, so an emoji is one character.
+  const length = Array.from(description).length;
+  if (length === 0) {
     errors.description = "Description is required";
-  } else if (description.length < MIN_DESCRIPTION_LENGTH) {
+  } else if (length < MIN_DESCRIPTION_LENGTH) {
     errors.description = `Enter at least ${MIN_DESCRIPTION_LENGTH} characters for the description (leading and trailing spaces are ignored)`;
   }
   if (!values.targetDate) {

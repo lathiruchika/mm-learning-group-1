@@ -69,7 +69,7 @@ const UpdateTodoPage = () => {
     }
   }, [retrieveOneTodoForUpdate])
 
-  async function onSubmit(values) {
+  async function onSubmit(values, { setErrors, setTouched }) {
     setSubmitError(null)
 
     const todo = {
@@ -88,9 +88,20 @@ const UpdateTodoPage = () => {
       }
       navigate("/list-todos")
     } catch (error) {
-      setSubmitError(getErrorMessage(error, "Unable to save the todo."))
+      if (error && error.code === ERROR_CODES.VALIDATION_ERROR && error.fieldErrors) {
+        setErrors(error.fieldErrors)
+        setTouched(Object.fromEntries(Object.keys(error.fieldErrors).map((field) => [field, true])))
+      } else {
+        setSubmitError(getErrorMessage(error, "Unable to save the todo."))
+      }
     }
   }
+
+  // An existing todo that already breaks the rules shows its errors up front
+  // instead of opening with a disabled Save button and no explanation.
+  const initialTouched = isCreate
+    ? {}
+    : Object.fromEntries(Object.keys(validateTodo(initialValues)).map((field) => [field, true]))
 
   if (loading) {
     return (
@@ -139,6 +150,7 @@ const UpdateTodoPage = () => {
         <Formik
           key={id}
           initialValues={initialValues}
+          initialTouched={initialTouched}
           onSubmit={onSubmit}
           validate={validateTodo}
           validateOnMount={true}

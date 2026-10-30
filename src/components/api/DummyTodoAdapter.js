@@ -1,5 +1,6 @@
 import { ERROR_CODES, TodoApiError } from "./ApiError";
 import { getItem, setItem } from "./StorageProvider";
+import { validateTodo } from "../todoValidation";
 
 // Dummy, backend-free implementation of the Todo REST-like contract.
 // Persists to localStorage under `todo:{username}` as a JSON array of
@@ -194,13 +195,10 @@ function notFound(id) {
 }
 
 function validateInput(todo) {
-    const fieldErrors = {};
-    if (!todo || typeof todo.description !== "string" || todo.description.trim() === "") {
-        fieldErrors.description = "Description is required.";
-    }
-    if (!todo || typeof todo.targetDate !== "string" || !DATE_RE.test(todo.targetDate)) {
-        fieldErrors.targetDate = "Target date must be in YYYY-MM-DD format.";
-    }
+    const fieldErrors = validateTodo({
+        description: todo && typeof todo.description === "string" ? todo.description : "",
+        targetDate: todo && typeof todo.targetDate === "string" ? todo.targetDate : "",
+    });
     if (Object.keys(fieldErrors).length) {
         throw new TodoApiError(ERROR_CODES.VALIDATION_ERROR, "Todo is invalid.", fieldErrors);
     }
