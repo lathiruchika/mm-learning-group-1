@@ -14,6 +14,8 @@ const ListTodos = () => {
     const [message, setMessage] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [deletingIds, setDeletingIds] = useState([]);
+    const [deleteError, setDeleteError] = useState(null);
     const authContext = useAuth();
     const username = authContext.username;
     const navigate = useNavigate();
@@ -27,6 +29,7 @@ const ListTodos = () => {
         const requestId = ++latestRequest.current;
         const isCurrent = () => requestId === latestRequest.current;
         setLoading(true);
+        setError(null);
         return retrieveTodosForAllUsers(username)
             .then((response) => {
                 if (!isCurrent()) return;
@@ -51,7 +54,10 @@ const ListTodos = () => {
     }, [refreshTodos])
 
     const deleteTodo = (id) => {
+        if (deletingIds.includes(id)) return
         setMessage(null)
+        setDeleteError(null)
+        setDeletingIds((ids) => [...ids, id])
         deleteTodoApi(username, id)
             .then(
                 () => {
@@ -59,7 +65,8 @@ const ListTodos = () => {
                     refreshTodos()
                 }
             )
-            .catch((err) => setError(getErrorMessage(err, "Unable to delete the todo.")))
+            .catch((err) => setDeleteError({ id, message: getErrorMessage(err, "Unable to delete the todo.") }))
+            .finally(() => setDeletingIds((ids) => ids.filter((x) => x !== id)))
     }
 
     const updateTodo = (id) => {
@@ -89,6 +96,12 @@ const ListTodos = () => {
                         testId="todo-list-error-banner"
                         retryTestId="todo-list-retry"
                     />
+                    <ErrorBanner
+                        message={deleteError && deleteError.message}
+                        onRetry={deleteError ? () => deleteTodo(deleteError.id) : undefined}
+                        testId="todo-delete-error-banner"
+                        retryTestId="todo-delete-retry"
+                    />
                     {loading && <LoadingIndicator label="Loading todos..." testId="todo-list-loading" />}
                     {isEmpty && (
                         <EmptyState
@@ -117,7 +130,7 @@ const ListTodos = () => {
                                         <td>{todo.description}</td>
                                         <td>{todo.done.toString()}</td>
                                         <td>{todo.targetDate.toString()}</td>
-                                        <td><button className="btn btn-warning" data-testid={`todo-delete-${todo.id}`} onClick={() => deleteTodo(todo.id)}>Delete</button></td>
+                                        <td><button className="btn btn-warning" data-testid={`todo-delete-${todo.id}`} disabled={deletingIds.includes(todo.id)} onClick={() => deleteTodo(todo.id)}>Delete</button></td>
                                         <td><button className="btn btn-success" data-testid={`todo-edit-${todo.id}`} onClick={() => updateTodo(todo.id)}>Update</button></td>
                                     </tr>
                                 ))}
