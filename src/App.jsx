@@ -1,53 +1,50 @@
-import { useState } from 'react'
-import ApiModeBadge from './components/ApiModeBadge.jsx'
-import ListTodosComponent from './components/ListTodosComponent.jsx'
-import TodoComponent from './components/TodoComponent.jsx'
+import { useEffect, useState } from 'react'
+import AddTodoForm from './components/AddTodoForm.jsx'
+import TodoList from './components/TodoList.jsx'
+
+const STORAGE_KEY = 'todos'
+
+// Load any previously saved todos from localStorage (runs once on first render).
+function loadTodos() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    return raw ? JSON.parse(raw) : []
+  } catch {
+    return []
+  }
+}
 
 function App() {
-  // editTodo: null = add mode, todo object = edit mode
-  const [editTodo, setEditTodo] = useState(null)
-  // Increment to signal ListTodosComponent to re-fetch after a save.
-  const [refreshTrigger, setRefreshTrigger] = useState(0)
+  const [todos, setTodos] = useState(loadTodos)
 
-  function handleEdit(todo) {
-    setEditTodo(todo)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+  // Persist todos whenever they change.
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(todos))
+  }, [todos])
+
+  function addTodo(text) {
+    const trimmed = text.trim()
+    if (!trimmed) return
+    const todo = { id: crypto.randomUUID(), text: trimmed, completed: false }
+    setTodos((prev) => [todo, ...prev])
   }
 
-  function handleSaved() {
-    setEditTodo(null)
-    setRefreshTrigger((n) => n + 1)
+  function toggleTodo(id) {
+    setTodos((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t)),
+    )
   }
 
-  function handleCancel() {
-    setEditTodo(null)
+  function deleteTodo(id) {
+    setTodos((prev) => prev.filter((t) => t.id !== id))
   }
 
   return (
-    <div className="app">
-      <header className="app-header" data-testid="app-navbar">
-        <h1 className="app-title">📝 Todo App</h1>
-        <ApiModeBadge />
-      </header>
-
-      <main className="app-main">
-        <section className="form-section">
-          <TodoComponent
-            editTodo={editTodo}
-            onSaved={handleSaved}
-            onCancel={handleCancel}
-          />
-        </section>
-
-        <section className="list-section">
-          <h2 className="section-title">My Todos</h2>
-          <ListTodosComponent
-            onEdit={handleEdit}
-            refreshTrigger={refreshTrigger}
-          />
-        </section>
-      </main>
-    </div>
+    <main className="app">
+      <h1>Todos</h1>
+      <AddTodoForm onAdd={addTodo} />
+      <TodoList todos={todos} onToggle={toggleTodo} onDelete={deleteTodo} />
+    </main>
   )
 }
 
