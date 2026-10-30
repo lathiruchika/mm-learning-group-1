@@ -1,77 +1,118 @@
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "./security/AuthProvider";
 import { createTodoApi, retrieveOneTodoApi, updateTodoApi } from "./api/TodoApi";
-import { useEffect, useState } from "react";
-import { ErrorMessage, Field, Form, Formik } from "formik";
-import moment from "moment";
+import { ERROR_CODES, getErrorMessage } from "./api/ApiError";
+import { useCallback, useEffect, useState } from "react";
+import { Field, Form, Formik } from "formik";
+import { validateTodo } from "./todoValidation";
+import ErrorBanner from "./common/ErrorBanner";
+import LoadingIndicator from "./common/LoadingIndicator";
 
 const UpdateTodoPage = () => {
 
   const authContext = useAuth();
   const username = authContext.username;
   const { id } = useParams();
-  const [description, setDescription] = useState("");
-  const [targetDate, setTargetDate] = useState("");
+  const isCreate = Number(id) === -1;
   const navigate = useNavigate();
 
-  useEffect(
-    () => retrieveOneTodoForUpdate(),
-    [id]
-  )
+  const [initialValues, setInitialValues] = useState({ description: "", targetDate: "", done: false });
+  const [loading, setLoading] = useState(!isCreate);
+  const [notFound, setNotFound] = useState(false);
+  const [loadError, setLoadError] = useState(null);
+  const [submitError, setSubmitError] = useState(null);
 
-  function retrieveOneTodoForUpdate() {
-
-    if (id != -1) {
-      retrieveOneTodoApi(username, id)
-        .then(response => {
-          setDescription(response.data.description)
-          setTargetDate(response.data.targetDate)
-        })
-        .catch(error => console.log(error))
+  const retrieveOneTodoForUpdate = useCallback(() => {
+    if (isCreate) {
+      setInitialValues({ description: "", targetDate: "", done: false });
+      setLoading(false);
+      return;
     }
+    setLoading(true);
+    setNotFound(false);
+    setLoadError(null);
+    retrieveOneTodoApi(username, id)
+      .then(response => {
+        setInitialValues({
+          description: response.data.description,
+          targetDate: response.data.targetDate,
+          done: Boolean(response.data.done),
+        })
+      })
+      .catch(error => {
+        if (error && error.code === ERROR_CODES.NOT_FOUND) {
+          setNotFound(true)
+        } else {
+          setLoadError(getErrorMessage(error, "Unable to load the todo."))
+        }
+      })
+      .finally(() => setLoading(false))
+  }, [username, id, isCreate])
 
-  }
+  useEffect(() => {
+    retrieveOneTodoForUpdate()
+  }, [retrieveOneTodoForUpdate])
 
-  function onSubmit(value) {
+  async function onSubmit(values) {
+    setSubmitError(null)
 
     const todo = {
       id: id,
       username: username,
-      description: value.description,
-      targetDate: value.targetDate,
-      done: false
+      description: values.description.trim(),
+      targetDate: values.targetDate,
+      done: values.done
     }
 
-    if (id == -1) {
-      createTodoApi(username, todo)
-        .then(response => {
-          navigate('/list-todos')
-          console.log(response)
-        })
-        .catch(error => console.log(error))
+    try {
+      if (isCreate) {
+        await createTodoApi(username, todo)
+      } else {
+        await updateTodoApi(username, id, todo)
+      }
+      navigate("/list-todos")
+    } catch (error) {
+      setSubmitError(getErrorMessage(error, "Unable to save the todo."))
     }
-    else {
-      updateTodoApi(username, id, todo)
-        .then(response => {
-          navigate('/list-todos')
-          console.log(response)
-        })
-    }
-
   }
 
-  function validate(value) {
-    let erros = {}
-    if (value.description.length < 8) {
-      erros.description = "Enter atlease 8 characters for description"
-    }
-    if (value.targetDate == "" || !moment(value.targetDate).isValid()) {
-      erros.targetDate = "Please enter a date"
-    }
-    return erros;
+  if (loading) {
+    return (
+      <div className="container my-4 py-4">
+        <LoadingIndicator label="Loading todo..." testId="todo-form-loading" />
+      </div>
+    )
   }
 
+  if (notFound) {
+    return (
+      <div className="container my-4 py-4 text-center" data-testid="todo-not-found">
+        <h2>Todo not found</h2>
+        <p className="text-muted">The todo you are looking for does not exist or was deleted.</p>
+        <button type="button" className="btn btn-success" onClick={() => navigate("/list-todos")}>
+          Back to todos
+        </button>
+      </div>
+    )
+  }
 
+  if (loadError) {
+    return (
+      <div className="container my-4 py-4">
+        <ErrorBanner
+          message={loadError}
+          onRetry={retrieveOneTodoForUpdate}
+          testId="todo-form-error-banner"
+          retryTestId="todo-form-retry"
+        />
+        <div className="text-center">
+          <button type="button" className="btn btn-secondary" onClick={() => navigate("/list-todos")}>
+            Back to todos
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="container  my-4 py-4">
@@ -80,39 +121,77 @@ const UpdateTodoPage = () => {
       </h1>
       <div className="d-flex justify-content-center m-5">
         <Formik
-          initialValues={{ description, targetDate }}
-          enableReinitialize={true}
+          key={id}
+          initialValues={initialValues}
           onSubmit={onSubmit}
-          validate={validate}
-          validateOnChange={false}
-          validateOnBlur={false}
+          validate={validateTodo}
+          validateOnMount={true}
+          validateOnChange={true}
+          validateOnBlur={true}
         >
           {
-            (props) => (
-
-              <Form>
-                <fieldset className="form-group">
-                  <ErrorMessage
-                    name="description"
-                    component="div"
-                    className="alert alert-warning"
-
-                  />
-                  <ErrorMessage
-                    name="targetDate"
-                    component="div"
-                    className="alert alert-warning"
-                  />
-                  <label>Description</label>
-                  <Field type="text" className="form-control" name="description" />
-                </fieldset>
-                <fieldset className="form-group">
-                  <label>TargetDate</label>
-                  <Field type="date" className="form-control" name="targetDate" />
-                </fieldset>
-                <button className="btn btn-success m-5 py-2 px-4" type="submit">Save</button>
-              </Form>
-            )
+            ({ errors, touched, values, isSubmitting }) => {
+              const isInvalid = Object.keys(validateTodo(values)).length > 0;
+              return (
+                <Form data-testid="todo-form" noValidate>
+                  <ErrorBanner message={submitError} testId="todo-form-error-banner" />
+                  <fieldset className="form-group mb-3">
+                    <label htmlFor="description">Description</label>
+                    <Field
+                      id="description"
+                      type="text"
+                      className={`form-control ${touched.description && errors.description ? "is-invalid" : ""}`}
+                      name="description"
+                      data-testid="todo-field-description"
+                      aria-invalid={Boolean(touched.description && errors.description)}
+                    />
+                    {touched.description && errors.description && (
+                      <div className="text-danger small mt-1" role="alert" data-testid="todo-error-description">{errors.description}</div>
+                    )}
+                  </fieldset>
+                  <fieldset className="form-group mb-3">
+                    <label htmlFor="targetDate">Target Date</label>
+                    <Field
+                      id="targetDate"
+                      type="date"
+                      className={`form-control ${touched.targetDate && errors.targetDate ? "is-invalid" : ""}`}
+                      name="targetDate"
+                      data-testid="todo-field-targetDate"
+                      aria-invalid={Boolean(touched.targetDate && errors.targetDate)}
+                    />
+                    {touched.targetDate && errors.targetDate && (
+                      <div className="text-danger small mt-1" role="alert" data-testid="todo-error-targetDate">{errors.targetDate}</div>
+                    )}
+                  </fieldset>
+                  <fieldset className="form-check mb-3">
+                    <Field
+                      id="done"
+                      type="checkbox"
+                      className="form-check-input"
+                      name="done"
+                      data-testid="todo-field-done"
+                    />
+                    <label className="form-check-label" htmlFor="done">Done</label>
+                  </fieldset>
+                  <button
+                    className="btn btn-success m-3 py-2 px-4"
+                    type="submit"
+                    disabled={isInvalid || isSubmitting}
+                    data-testid="todo-save"
+                  >
+                    Save
+                  </button>
+                  <button
+                    className="btn btn-secondary m-3 py-2 px-4"
+                    type="button"
+                    onClick={() => navigate("/list-todos")}
+                    data-testid="todo-cancel"
+                  >
+                    Cancel
+                  </button>
+                </Form>
+              )
+            }
           }
         </Formik>
       </div>
