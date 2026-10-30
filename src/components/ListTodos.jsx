@@ -43,9 +43,10 @@ const ListTodos = () => {
     }, [username])
 
     useEffect(() => {
+        const counter = latestRequest
         refreshTodos()
         return () => {
-            latestRequest.current++
+            counter.current++
         }
     }, [refreshTodos])
 
