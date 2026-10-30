@@ -155,6 +155,11 @@ body { min-height: 100vh; }
 
 .actions-cell { display: flex; gap: .35rem; white-space: nowrap; }
 
+.delete-success {
+  font-size: .78rem;
+  color: var(--color-success);
+  font-weight: 500;
+}
 .delete-error {
   font-size: .78rem;
   color: var(--color-danger);

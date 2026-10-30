@@ -6,9 +6,10 @@
 //
 // Env controls (via apiConfig):
 //   VITE_DUMMY_API_LATENCY_MS   adds artificial delay to every call
-//   VITE_DUMMY_API_FAIL=true    causes every call to throw (test error states)
+//   VITE_DUMMY_FAIL_RATE        0..1 — fraction of calls that fail randomly
+//                               (0 = never, 1 = always, 0.3 = 30% chance)
 
-import { DUMMY_LATENCY_MS, DUMMY_FAIL } from '../config/apiConfig.js'
+import { DUMMY_LATENCY_MS, DUMMY_FAIL_RATE } from '../config/apiConfig.js'
 
 const TODOS_KEY = 'mm.todos.v1'
 const META_KEY  = 'mm.todos.meta.v1'
@@ -45,6 +46,7 @@ function readTodos() {
     const raw = localStorage.getItem(TODOS_KEY)
     return raw ? JSON.parse(raw) : null
   } catch {
+    if (import.meta.env.DEV) console.warn('[dummyTodoApi] localStorage read failed')
     return null
   }
 }
@@ -53,7 +55,7 @@ function writeTodos(todos) {
   try {
     localStorage.setItem(TODOS_KEY, JSON.stringify(todos))
   } catch {
-    // ignore quota errors in read-only / private contexts
+    if (import.meta.env.DEV) console.warn('[dummyTodoApi] localStorage write failed (quota?)')
   }
 }
 
@@ -62,6 +64,7 @@ function readMeta() {
     const raw = localStorage.getItem(META_KEY)
     return raw ? JSON.parse(raw) : null
   } catch {
+    if (import.meta.env.DEV) console.warn('[dummyTodoApi] localStorage meta read failed')
     return null
   }
 }
@@ -69,10 +72,13 @@ function readMeta() {
 function writeMeta(meta) {
   try {
     localStorage.setItem(META_KEY, JSON.stringify(meta))
-  } catch { /* ignore */ }
+  } catch {
+    if (import.meta.env.DEV) console.warn('[dummyTodoApi] localStorage meta write failed')
+  }
 }
 
 // Seed default todos on first run (or after localStorage clear).
+// NOTE: schema version bump resets local data — acceptable for this demo app.
 function ensureSeeded() {
   const meta = readMeta()
   if (!meta || meta.schemaVersion !== SCHEMA_VERSION) {
@@ -94,6 +100,17 @@ function allocateId() {
   return id
 }
 
+// ── validation ───────────────────────────────────────────────────────────────
+
+function validateTodoData(data) {
+  if (!data.description || data.description.trim().length < 8) {
+    throw new Error('Description must be at least 8 characters.')
+  }
+  if (!data.targetDate || !/^\d{4}-\d{2}-\d{2}$/.test(data.targetDate)) {
+    throw new Error('Target date must be a valid YYYY-MM-DD string.')
+  }
+}
+
 // ── simulation helpers ───────────────────────────────────────────────────────
 
 async function simulateDelay() {
@@ -102,9 +119,10 @@ async function simulateDelay() {
   }
 }
 
+// Probabilistic failure: VITE_DUMMY_FAIL_RATE=0.3 fails ~30% of calls.
 function maybeSimulateFailure() {
-  if (DUMMY_FAIL) {
-    throw new Error('Simulated API failure (VITE_DUMMY_API_FAIL=true)')
+  if (DUMMY_FAIL_RATE > 0 && Math.random() < DUMMY_FAIL_RATE) {
+    throw new Error(`Simulated API failure (VITE_DUMMY_FAIL_RATE=${DUMMY_FAIL_RATE})`)
   }
 }
 
@@ -124,6 +142,7 @@ export const dummyTodoApi = {
     await simulateDelay()
     maybeSimulateFailure()
     const todos = ensureSeeded()
+    // Normalise id to string to guard against numeric IDs from other sources.
     const todo = todos.find((t) => t.id === String(id) && t.username === username)
     if (!todo) throw new Error(`Todo ${id} not found`)
     return todo
@@ -133,11 +152,12 @@ export const dummyTodoApi = {
   async createTodo(username, data) {
     await simulateDelay()
     maybeSimulateFailure()
+    validateTodoData(data)
     const todos = ensureSeeded()
     const todo = {
       id: allocateId(),
       username,
-      description: data.description,
+      description: data.description.trim(),
       targetDate: data.targetDate,
       done: false,
     }
@@ -149,10 +169,22 @@ export const dummyTodoApi = {
   async updateTodo(username, id, data) {
     await simulateDelay()
     maybeSimulateFailure()
+    // Only validate description/targetDate when they are explicitly supplied.
+    if (data.description !== undefined || data.targetDate !== undefined) {
+      validateTodoData({
+        description: data.description ?? 'placeholder-skip',
+        targetDate: data.targetDate ?? '2000-01-01',
+        ...data,
+      })
+    }
     const todos = ensureSeeded()
     const idx = todos.findIndex((t) => t.id === String(id) && t.username === username)
     if (idx === -1) throw new Error(`Todo ${id} not found`)
-    const updated = { ...todos[idx], ...data }
+    const updated = {
+      ...todos[idx],
+      ...data,
+      description: data.description != null ? data.description.trim() : todos[idx].description,
+    }
     const next = [...todos]
     next[idx] = updated
     writeTodos(next)

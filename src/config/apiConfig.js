@@ -9,6 +9,7 @@
 
 export const API_MODE = import.meta.env.VITE_API_MODE ?? 'dummy'
 export const DUMMY_LATENCY_MS = Number(import.meta.env.VITE_DUMMY_API_LATENCY_MS ?? 0)
-export const DUMMY_FAIL = import.meta.env.VITE_DUMMY_API_FAIL === 'true'
+// VITE_DUMMY_FAIL_RATE: 0 = never fail, 1 = always fail, 0.3 = 30% chance (EPMCDMETST-70448)
+export const DUMMY_FAIL_RATE = Math.min(1, Math.max(0, Number(import.meta.env.VITE_DUMMY_FAIL_RATE ?? 0)))
 export const APP_USERNAME = import.meta.env.VITE_APP_USERNAME ?? 'demo-user'
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080'

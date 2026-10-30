@@ -1,56 +1,81 @@
 // ListTodosComponent — displays todos with loading, empty, and error states.
 // Handles per-row delete progress + delete error (EPMCDMETST-70449, 70450).
+//
+// Race-condition guard: a fetchId ref ensures only the latest in-flight
+// request updates state; stale responses from rapid refreshes are silently
+// dropped and unmount-time state updates are prevented.
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { todoApi } from '../api/todoApiFactory.js'
 import { normalizeError } from '../api/errorNormalizer.js'
 import { APP_USERNAME } from '../config/apiConfig.js'
 import ErrorBanner from './ErrorBanner.jsx'
 
+// How long (ms) to show the delete-success inline message before clearing it.
+const DELETE_SUCCESS_TTL = 3000
+
 function ListTodosComponent({ onEdit, refreshTrigger }) {
-  const [todos, setTodos] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  // Track per-row delete state: { [id]: 'deleting' | 'error' | string }
+  const [todos, setTodos]           = useState([])
+  const [loading, setLoading]       = useState(true)
+  const [error, setError]           = useState(null)
+  // { [id]: 'deleting' | 'success' | <error string> }
   const [deleteState, setDeleteState] = useState({})
 
-  async function fetchTodos() {
+  // Monotonic counter — lets us discard responses from superseded fetches.
+  const fetchIdRef = useRef(0)
+
+  // Stable fetch function; todoApi and APP_USERNAME are module-level constants.
+  const fetchTodos = useCallback(async () => {
+    const fetchId = ++fetchIdRef.current
     setLoading(true)
     setError(null)
     try {
       const data = await todoApi.getTodos(APP_USERNAME)
+      if (fetchId !== fetchIdRef.current) return   // stale — discard
       setTodos(data)
     } catch (err) {
+      if (fetchId !== fetchIdRef.current) return
       setError(normalizeError(err))
     } finally {
-      setLoading(false)
+      if (fetchId === fetchIdRef.current) setLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     fetchTodos()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [refreshTrigger])
+    // Cancel in-flight on unmount by bumping the counter so any pending
+    // response knows it is stale.
+    return () => { fetchIdRef.current++ }
+  }, [fetchTodos, refreshTrigger])
+
+  // ── delete ───────────────────────────────────────────────────────────────
 
   async function handleDelete(id) {
-    setDeleteState((prev) => ({ ...prev, [id]: 'deleting' }))
+    // Normalise to string to match storage keys (guard against numeric IDs).
+    const sid = String(id)
+    setDeleteState((prev) => ({ ...prev, [sid]: 'deleting' }))
     try {
-      await todoApi.deleteTodo(APP_USERNAME, id)
-      setTodos((prev) => prev.filter((t) => t.id !== id))
-      setDeleteState((prev) => {
-        const next = { ...prev }
-        delete next[id]
-        return next
-      })
+      await todoApi.deleteTodo(APP_USERNAME, sid)
+      setTodos((prev) => prev.filter((t) => String(t.id) !== sid))
+      // Show a transient success badge, then clear it (EPMCDMETST-70450 AC).
+      setDeleteState((prev) => ({ ...prev, [sid]: 'success' }))
+      setTimeout(() => {
+        setDeleteState((prev) => {
+          const next = { ...prev }
+          delete next[sid]
+          return next
+        })
+      }, DELETE_SUCCESS_TTL)
     } catch (err) {
-      setDeleteState((prev) => ({ ...prev, [id]: normalizeError(err) }))
+      setDeleteState((prev) => ({ ...prev, [sid]: normalizeError(err) }))
     }
   }
 
   function clearDeleteError(id) {
+    const sid = String(id)
     setDeleteState((prev) => {
       const next = { ...prev }
-      delete next[id]
+      delete next[sid]
       return next
     })
   }
@@ -58,7 +83,7 @@ function ListTodosComponent({ onEdit, refreshTrigger }) {
   async function handleToggleDone(todo) {
     try {
       const updated = await todoApi.updateTodo(APP_USERNAME, todo.id, { done: !todo.done })
-      setTodos((prev) => prev.map((t) => (t.id === updated.id ? updated : t)))
+      setTodos((prev) => prev.map((t) => (String(t.id) === String(updated.id) ? updated : t)))
     } catch (err) {
       setError(normalizeError(err))
     }
@@ -68,7 +93,12 @@ function ListTodosComponent({ onEdit, refreshTrigger }) {
 
   if (loading) {
     return (
-      <p className="status-msg" data-testid="todos-loading">
+      <p
+        className="status-msg"
+        data-testid="todos-loading"
+        role="status"
+        aria-live="polite"
+      >
         ⏳ Loading todos…
       </p>
     )
@@ -86,7 +116,12 @@ function ListTodosComponent({ onEdit, refreshTrigger }) {
 
   if (todos.length === 0) {
     return (
-      <div className="empty-state" data-testid="todos-empty">
+      <div
+        className="empty-state"
+        data-testid="todos-empty"
+        role="status"
+        aria-live="polite"
+      >
         <p>No todos yet — get started!</p>
         <button
           className="btn btn--primary"
@@ -112,31 +147,37 @@ function ListTodosComponent({ onEdit, refreshTrigger }) {
         </thead>
         <tbody>
           {todos.map((todo) => {
-            const ds = deleteState[todo.id]
-            const isDeleting = ds === 'deleting'
-            const deleteError = ds && ds !== 'deleting' ? ds : null
+            const sid          = String(todo.id)
+            const ds           = deleteState[sid]
+            const isDeleting   = ds === 'deleting'
+            const isSuccess    = ds === 'success'
+            const deleteError  = ds && ds !== 'deleting' && ds !== 'success' ? ds : null
 
             return (
               <tr
-                key={todo.id}
-                data-testid={`todo-row-${todo.id}`}
+                key={sid}
+                data-testid={`todo-row-${sid}`}
                 className={todo.done ? 'todo-row--done' : ''}
               >
                 <td>
-                  <span
-                    className={todo.done ? 'todo-text--done' : ''}
-                  >
+                  <span className={todo.done ? 'todo-text--done' : ''}>
                     {todo.description}
                   </span>
+                  {isSuccess && (
+                    <span className="delete-success" role="status" aria-live="polite">
+                      {' '}✓ Deleted
+                    </span>
+                  )}
                   {deleteError && (
                     <span
                       className="delete-error"
-                      data-testid={`todo-delete-error-${todo.id}`}
+                      data-testid={`todo-delete-error-${sid}`}
+                      role="alert"
                     >
                       {' '}⚠ {deleteError}{' '}
                       <button
                         className="btn-link"
-                        onClick={() => clearDeleteError(todo.id)}
+                        onClick={() => clearDeleteError(sid)}
                       >
                         dismiss
                       </button>
@@ -157,15 +198,15 @@ function ListTodosComponent({ onEdit, refreshTrigger }) {
                     className="btn btn--small"
                     onClick={() => onEdit(todo)}
                     disabled={isDeleting}
-                    data-testid={`todo-edit-${todo.id}`}
+                    data-testid={`todo-edit-${sid}`}
                   >
                     Edit
                   </button>
                   <button
                     className={`btn btn--small btn--danger${isDeleting ? ' btn--loading' : ''}`}
-                    onClick={() => handleDelete(todo.id)}
+                    onClick={() => handleDelete(sid)}
                     disabled={isDeleting}
-                    data-testid={isDeleting ? `todo-deleting-${todo.id}` : `todo-delete-${todo.id}`}
+                    data-testid={isDeleting ? `todo-deleting-${sid}` : `todo-delete-${sid}`}
                     aria-label={isDeleting ? 'Deleting…' : `Delete "${todo.description}"`}
                   >
                     {isDeleting ? '…' : '×'}
